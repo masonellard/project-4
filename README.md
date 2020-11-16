@@ -20,4 +20,11 @@ A python file that reads in all of the scraped post data, cleans the text data, 
 A python file that reads in the .csv files output by WSO.py, and creates data visualizations.
 
 ## Results
+A brief summary of three main takeaways:
+* Industries such as IB seem to be getting more competitive, as companies are pushing back recruitment timelines and users are relying more on recruitment threads in order to stay up to date on recruitment trends.
+* Industries such as management consulting and real estate seem to be getting more popular, while trading seems to be losing popularity.
+* Work/life balance and culture are getting talked about more overall, but it seems progress in that area is slowed by increased competition.
+
+Visualizations can be viewed in [project-4.pdf](https://github.com/masonellard/project-4/blob/main/project-4.pdf). Will be blogging a more in-depth explanation soon!
+
 
