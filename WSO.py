@@ -6,198 +6,27 @@ Created on Wed Nov  4 15:58:15 2020
 @author: mason
 """
 
-from bs4 import BeautifulSoup
-import requests
 import numpy as np
 import pandas as pd
 import pickle
+import matplotlib.pyplot as plt
+import re 
+import string
+from sklearn.feature_extraction import text
+from sklearn.decomposition import TruncatedSVD, NMF
+from gensim import models, matutils
+from corextopic import corextopic as ct
 
+def display_topics(model, feature_names, no_top_words, topic_names=None):
+    for ix, topic in enumerate(model.components_):
+        if not topic_names or not topic_names[ix]:
+            print("\nTopic ", ix)
+        else:
+            print("\nTopic: '",topic_names[ix],"'")
+        print(", ".join([feature_names[i]
+                        for i in topic.argsort()[:-no_top_words - 1:-1]]))
 
-# Retrieving page links
-
-def get_links(page_list):
-    
-    links = []
-    base_url = 'https://www.wallstreetoasis.com/tracker/nocompany?page='
-    
-    for page in page_list:
-        try:
-            response = requests.get(base_url+str(page))
-            page = response.text
-            soup = BeautifulSoup(page)
-            
-            for forum in soup.find('tbody').find_all(class_ = 'views-field views-field-title-with-tooltip'):
-                links.append(forum.find('a').get('href'))
-        except:
-            None
-    return links
-
-page_list = list(np.arange(0, 1503, 3))
-links_list = get_links(page_list)
-
-links_list = list(set(links_list))
-
-
-with open('wso_links.pickle', 'wb') as to_write:
-    pickle.dump(links_list, to_write)
-    
-
-
-# Retrieving OP post
-
-def get_posts(soup):
-    
-    try:
-        post = soup.find(class_ = 'post-wrap').find(property='content:encoded').text
-        return post
-    except:
-        None
-        
-    
-
-
-def post_upvotes(soup):
-    
-    upvotes = 0    
-    try:
-        for votes in soup.find(class_='post-footer').find_all(class_='badge'):
-            if 'badge-success' in votes['class']:
-                upvotes = votes.text
-            else:
-                pass
-        return upvotes
-    except:
-        None
-    
-    
-
-
-def post_downvotes(soup):
-    
-    downvotes = 0    
-    try:
-        for votes in soup.find(class_='post-footer').find_all(class_='badge'):
-            if 'badge-success' not in votes['class']:
-                downvotes = votes.text
-            else:
-                    pass
-        return downvotes        
-    except:
-        None
-        
-    
-
-
-def get_date(soup):
-    
-    try:
-        date = soup.find(class_='created pr-4').text.replace('\n', '')
-        return date
-    except:
-        None
-        
-    
-
-
-def post_dict(link):
-    
-    base_url = 'https://www.wallstreetoasis.com'
-    response = requests.get(base_url + link)
-    page = response.text
-    soup = BeautifulSoup(page)
-    
-    headers = ['link', 'post', 'upvotes', 'downvotes', 'date']
-    
-    op_dict = dict(zip(headers, [link,
-                                get_posts(soup),
-                                post_upvotes(soup),
-                                post_downvotes(soup), 
-                                get_date(soup)]))
-    
-    return op_dict
-
-import time
-import random
-from tqdm import tqdm
-
-post_data = []
-count = 0
-for link in tqdm(links_list[:1000]):
-    post_data.append(post_dict(link))
-    count += 1
-    if count % 100 == 0:
-        with open('wso_post_data.pickle', 'wb') as to_write:
-            pickle.dump(post_data, to_write)
-    time.sleep(.5+random.random())
-
-post_df = pd.DataFrame(post_data)
-
-post_df.isna().sum()
-
-post_df.dropna(how='any', inplace=True)
-
-post_df.head()
-# Retrieving comments
-
-def comments_dict_list(links):
-    
-    comment_data = []
-    base_url = 'https://www.wallstreetoasis.com'
-    headers = ['link', 'comment', 'upvotes', 'downvotes', 'date']
-    count = 0
-    for link in links:
-        count += 1
-        if count % 100 == 0:
-            with open('wso_comment_data.pickle', 'wb') as to_write:
-                pickle.dump(comment_data, to_write)
-        try:
-            response = requests.get(base_url + link)
-            page = response.text
-            soup = BeautifulSoup(page)
-            
-            comment = ''
-            upvotes = 0
-            downvotes = 0
-            for comments in soup.find_all(class_='comment-content'):
-                try:
-                    comment = comments.find(class_='field-name-comment-body').text
-                    for votes in comments.find_all(class_='badge'):
-                        if 'badge-success' in votes['class']:
-                            upvotes = votes.text
-                        else:
-                            downvotes = votes.text  
-                except:
-                    None
-            
-                if comment:
-                    comment_dict = dict(zip(headers, [link,
-                                                      comment,
-                                                      upvotes,
-                                                      downvotes,
-                                                      get_date(soup)]))
-                    comment_data.append(comment_dict)
-        except:
-            None            
-    return comment_data
-
-
-
-for link in links_list:
-    for comment in get_comments(soup):
-        comments_dict 
-for comments in soup.find_all(class_='comment-content'):
-    try:
-        print(comments.find(class_='field-name-comment-body').text)
-    except:
-       None
-    try:
-        for votes in comments.find_all(class_='badge'):
-            if 'badge-success' in votes['class']:
-                print('Upvotes:', votes.text)
-            else:
-                print('Downvotes:', votes.text)        
-    except:
-        None
+# Importing data pickle files
 
 with open('wso_post_data.pickle','rb') as read_file:
     data0 = pickle.load(read_file)
@@ -225,10 +54,8 @@ with open('/home/mason/Metis/project-4/wso_post_data5.pickle','rb') as read_file
 
 with open('/home/mason/Metis/project-4/wso_post_data51.pickle','rb') as read_file:
     data51 = pickle.load(read_file)
-
-with open('wso_links.pickle','rb') as read_file:
-    links_list = pickle.load(read_file)
     
+# filtering any 'None' values out of data
 
 data0 = list(filter(lambda a: a != None, data0))
 data1 = list(filter(lambda a: a != None, data1))
@@ -242,115 +69,194 @@ data51 = list(filter(lambda a: a != None, data51))
 
 post_df = pd.DataFrame(data0+data1+data2+data21+data3+data4+data41+data5+data51)
 
+# dropping NaNs
 post_df.isna().sum()
-
 post_df.dropna(how='any', inplace=True)
 
+# for many forums, the title is just as important as the post. Lets combine the two..
 title_format = lambda x: x.replace('/forums/', '').replace('-', ' ')
-
 post_series = post_df.link.map(title_format) + ' ' + post_df.post
 
-import re 
-import string
-
+# ridding text data of numbers, capitalized letters, and line breaks
 alphanumeric = lambda x: re.sub('\w*\d\w*', ' ', x)
 punc_lower = lambda x: re.sub('[%s]' % re.escape(string.punctuation), ' ', x.lower())
 line_breaks = lambda x: x.replace('\n', '')
 
-post_series = post_series.map(alphanumeric).map(punc_lower)
-post_series = post_series.map(line_breaks) 
-
+post_series = post_series.map(alphanumeric).map(punc_lower).map(line_breaks)
 post_series.head()
 
-from sklearn.feature_extraction import text
+# Lets add some stop words to the existing 'english' list
+stop_words = text.ENGLISH_STOP_WORDS.union(['know', 
+                                            'don', 
+                                            'think', 
+                                            'does', 
+                                            'hi', 
+                                            've', 
+                                            'thanks', 
+                                            'like', 
+                                            'http', 
+                                            'https', 
+                                            'www', 
+                                            'just', 
+                                            'deleted', 
+                                            'wondering'])
 
-stop_words = text.ENGLISH_STOP_WORDS.union(['know', 'don', 'think', 'does', 'hi', 've', 'thanks', 'like', 'http', 'https', 'www', 'just', 'deleted', 'wondering'])
-
+# I'm going to create both a count and tfidf vectorizer and compare results
 cv = text.CountVectorizer(stop_words = stop_words, ngram_range=(1, 1))
-X = cv.fit_transform(post_series).transpose()
+tfidf = text.TfidfVectorizer(stop_words = stop_words, sublinear_tf=True)
 
-from gensim import models, corpora, similarities, matutils
+X_cv = cv.fit_transform(post_series)
+X_tf = tfidf.fit_transform(post_series)
 
-corpus = matutils.Sparse2Corpus(X)
+X_cv.shape
+X_tf.shape
 
+# LSA
+
+# Lets start with two topics and see how we do
+lsa = TruncatedSVD(2)
+topic_cv = lsa.fit_transform(X_cv)
+display_topics(lsa, cv.get_feature_names(), 10)
+lsa.explained_variance_ratio_ # a list of the explained variance ratio per topic
+ 
+# Now lets increase the number of topics, and see if we can pick an optimal number
+# based on the explained variance ratios of additional topics
+
+lsa = TruncatedSVD(20) # increasing number of topics to 20
+lsa.fit_transform(X_cv)
+plt.plot(lsa.explained_variance_ratio_) # graphing the explained variance ratios
+plt.xticks(list(range(len(lsa.explained_variance_ratio_))))
+display_topics(lsa, cv.get_feature_names(), 10)
+
+# There appeared to be an 'elbow' around 2-3 topics when graphing the explained variance ratios
+lsa = TruncatedSVD(3) # reducing number of topics to 3
+topic_cv = lsa.fit_transform(X_cv)
+display_topics(lsa, cv.get_feature_names(), 10)
+lsa.explained_variance_ratio_
+
+# We'll repeat the same process, but this time with the tfidf vectorizer
+# First, lets plot the elbow curve for 20 topics
+lsa = TruncatedSVD(20)
+topic_tf = lsa.fit_transform(X_tf)
+plt.plot(lsa.explained_variance_ratio_)
+plt.xticks(list(range(len(lsa.explained_variance_ratio_))))
+
+# This 'elbow' looked much less defined. Lets reduce number of topics to 4
+lsa = TruncatedSVD(4)
+topic_tf = lsa.fit_transform(X_tf)
+display_topics(lsa, tfidf.get_feature_names(), 10)
+
+# NMF
+
+nmf = NMF(2) # Setting initial number of topics to 2
+
+# Comparing results from count vectorizer and tfidf vectorizer
+topic_cv = nmf.fit_transform(X_cv)
+display_topics(nmf, cv.get_feature_names(), 10)
+
+topic_tf = nmf.fit_transform(X_tf)
+display_topics(nmf, tfidf.get_feature_names(), 10)
+
+nmf = NMF(20) # increasing number of topics to 20
+
+# Again, lets compare results between cv and tfidf
+nmf.fit_transform(X_cv)
+display_topics(nmf, cv.get_feature_names(), 10)
+
+topic_cv = nmf.fit_transform(X_tf)
+display_topics(nmf, tfidf.get_feature_names(), 10)
+
+# Looks like we got much more separation with the count
+# vectorizer, so we'll pickle that for later
+
+nmf.fit_transform(X_cv) # fitting nmf to the cv for the pickle file
+display_topics(nmf, cv.get_feature_names(), 10)
+
+with open('nmf.pickle', 'wb') as to_write:
+    pickle.dump(nmf, to_write)
+
+# LDA
+
+corpus = matutils.Sparse2Corpus(X_cv.transpose()) # creating a corpus with the count vectorizer
 id2word = dict((v, k) for k, v in cv.vocabulary_.items())
 
-lda = models.LdaModel(corpus=corpus, num_topics=7, id2word=id2word, passes=100)
-
+lda = models.LdaModel(corpus=corpus, num_topics=10, id2word=id2word, passes=10)
 lda.print_topics()
 
-lda.get_topics()
+corpus = matutils.Sparse2Corpus(X_tf.transpose()) # creating a corpus with the tfidf vectorizer
+id2word = dict((v, k) for k, v in tfidf.vocabulary_.items()) 
 
-lda.show_topics()
+lda = models.LdaModel(corpus=corpus, num_topics=10, id2word=id2word, passes=10)
+lda.print_topics()
 
-topics = lda.get_document_topics(corpus)
+# Corex
 
-topics[2]
-corpus[2]
+words = list(np.asarray(cv.get_feature_names())) # retrieving list of words in count vectorizer
 
-for i,j in corpus[0]:
-    print(id2word[i])
+# Fitting first corex model with 6 topics, no anchors
+model = ct.Corex(n_hidden=6, words=words, seed=1)
+model.fit(X_cv, words=words)
 
+# displaying topics
+topics = model.get_topics()
+for n,topic in enumerate(topics):
+    topic_words,_ = zip(*topic)
+    print('{}: '.format(n) + ','.join(topic_words))
+
+# Fitting corex model with 10 topics, 2 sets of weak anchors
+model = ct.Corex(n_hidden=10, words=words, seed=1)
+model.fit(X_cv, words=words,
+          anchors=[['school', 'target', 'gpa'],
+                   ['work', 'life', 'balance']], anchor_strength=2)
+
+# displaying new topics
+topics = model.get_topics()
+for n,topic in enumerate(topics):
+    topic_words,_ = zip(*topic)
+    print('{}: '.format(n) + ','.join(topic_words))
+
+
+# Appears that we got the best results from the 20-topic NMF model
+# lets read in the pickle file and prepare some dataframes to do visualizations with
+
+with open('nmf.pickle','rb') as read_file:
+    nmf = pickle.load(read_file)
+
+topic_cv = nmf.transform(X_cv)
+
+# Creating a 'topic' column in post_df, and setting it equal to that post's topic with highest probability
 post_df['topic'] = 0
-for ind, row in enumerate(topics):
+for ind, row in enumerate(topic_cv):
     max_prob = 0
-    for i, j in row:
+    for i, j in enumerate(row):
         if j > max_prob:
             max_prob = j
             topic = i
     post_df.loc[post_df.index[ind],'topic'] = topic
     
 post_df.date = pd.to_datetime(post_df.date)
-    
-import matplotlib.pyplot as plt
 
-topic_0 = post_df[['date', 'topic']].loc[post_df[post_df.topic == 0].index, ].groupby(post_df.date.dt.month).count()
-topic_1 = post_df[['date', 'topic']].loc[post_df[post_df.topic == 1].index, ].groupby(post_df.date.dt.month).count()
-topic_2 = post_df[['date', 'topic']].loc[post_df[post_df.topic == 2].index, ].groupby(post_df.date.dt.month).count()
-topic_3 = post_df[['date', 'topic']].loc[post_df[post_df.topic == 3].index, ].groupby(post_df.date.dt.month).count()
-topic_4 = post_df[['date', 'topic']].loc[post_df[post_df.topic == 4].index, ].groupby(post_df.date.dt.month).count()
-topic_5 = post_df[['date', 'topic']].loc[post_df[post_df.topic == 5].index, ].groupby(post_df.date.dt.month).count()
-topic_6 = post_df[['date', 'topic']].loc[post_df[post_df.topic == 6].index, ].groupby(post_df.date.dt.month).count()
+# 9 topics stand out as the best topics from our model for inference purposes. Lets keep them in a list
+best_topics = ['0', '2', '5', '6', '7', '8', '9', '11', '16', '17', '18']
 
-plt.plot(topic_0)
-plt.plot(topic_1)
-plt.plot(topic_2)
-plt.plot(topic_3)
-plt.plot(topic_4)
-plt.plot(topic_5)
-plt.plot(topic_6)
+# First, lets make a dataframe holding total counts for each topic in 'best_topics' by month 
+month_totals = pd.concat([post_df[['date', 'topic']].loc[post_df[post_df.topic == int(topic)].index, ].groupby(post_df.date.dt.month).count().topic for topic in best_topics], axis = 1)
+month_totals.columns = best_topics
 
-topic_0 = post_df[['date', 'topic']].loc[post_df[post_df.topic == 0].index, ].groupby(post_df.date.dt.year).count()
-topic_1 = post_df[['date', 'topic']].loc[post_df[post_df.topic == 1].index, ].groupby(post_df.date.dt.year).count()
-topic_2 = post_df[['date', 'topic']].loc[post_df[post_df.topic == 2].index, ].groupby(post_df.date.dt.year).count()
-topic_3 = post_df[['date', 'topic']].loc[post_df[post_df.topic == 3].index, ].groupby(post_df.date.dt.year).count()
-topic_4 = post_df[['date', 'topic']].loc[post_df[post_df.topic == 4].index, ].groupby(post_df.date.dt.year).count()
-topic_5 = post_df[['date', 'topic']].loc[post_df[post_df.topic == 5].index, ].groupby(post_df.date.dt.year).count()
-topic_6 = post_df[['date', 'topic']].loc[post_df[post_df.topic == 6].index, ].groupby(post_df.date.dt.year).count()
+# Next, we count total number of posts by year
+yearly_totals = post_df.groupby([post_df.date.dt.year]).link.count()
 
-plt.plot(topic_0)
-plt.plot(topic_1)
-plt.plot(topic_2)
-plt.plot(topic_3)
-plt.plot(topic_4)
-plt.plot(topic_5)
-plt.plot(topic_6)
+# Then, we count total number of posts by year and topic
+topic_by_year = post_df.groupby([post_df.date.dt.year, 'topic']).link.count()
+topic_year_df = topic_by_year.reset_index(level=1)
 
+# We can use the previous two dataframes to calculate the proportion of posts belonging to each topic, each year
+year_proportions = pd.concat([topic_year_df[topic_year_df['topic'] == int(topic)].link / yearly_totals.loc[topic_year_df[topic_year_df['topic'] == int(topic)].index,] for topic in best_topics], axis=1)
+year_proportions.columns = best_topics
+year_proportions.head()
 
-
-
-len(corpus)
-id2wor
-X.shape
-
-lda_corpus = lda[corpus]
-
-lda_docs = [doc for doc in lda_corpus]
-
-lda_docs[:5]
-
-life_posts = post_df.loc[post_df[post_df.topic == 4].index, 'post']
-
-topic_0_posts = post_df.loc[post_df[post_df.topic == 0].index, 'post']
-
-topic_5_posts = post_df.loc[post_df[post_df.topic == 5].index, 'post']
+# Now lets write the appropriate dataframes to csv's so we can use them in our visualizations
+year_proportions.to_csv('/home/mason/Metis/project-4/year_prop.csv')
+yearly_totals.to_csv('/home/mason/Metis/project-4/year_totals.csv')
+month_totals.to_csv('/home/mason/Metis/project-4/monthly_totals.csv')
+post_df.to_csv('/home/mason/Metis/project-4/post_df.csv')

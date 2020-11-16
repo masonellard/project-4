@@ -8,14 +8,25 @@ Created on Thu Nov  5 22:41:42 2020
 
 from bs4 import BeautifulSoup
 import requests
-import numpy as np
-import pandas as pd
 import pickle
 
+# open the list of links to scrape
 with open('wso_links.pickle','rb') as read_file:
     links_list = pickle.load(read_file)
 
 def get_posts(soup):
+    '''
+    Parameters
+    ----------
+    soup : BeautifulSoup Object
+        Forum discussion page from Wall Street Oasis.
+        
+    Returns
+    -------
+    post : string
+        Original post on forum discussion page.
+
+    '''    
     
     try:
         post = soup.find(class_ = 'post-wrap').find(property='content:encoded').text
@@ -25,6 +36,18 @@ def get_posts(soup):
         
 
 def post_upvotes(soup):
+    '''
+    Parameters
+    ----------
+    soup : BeautifulSoup Object
+        Forum discussion page from Wall Street Oasis.
+
+    Returns
+    -------
+    upvotes : integer
+        Number of upvotes for original post.
+
+    '''
     
     upvotes = 0    
     try:
@@ -36,11 +59,23 @@ def post_upvotes(soup):
         return upvotes
     except:
         None
-    
+
     
 
 
 def post_downvotes(soup):
+    '''
+    Parameters
+    ----------
+    soup : BeautifulSoup Object
+        Forum discussion page from Wall Street Oasis.
+        
+    Returns
+    -------
+    downvotes : integer
+        Number of downvotes for original post.
+
+    '''
     
     downvotes = 0    
     try:
@@ -57,6 +92,18 @@ def post_downvotes(soup):
 
 
 def get_date(soup):
+    '''
+    Parameters
+    ----------
+    soup : BeautifulSoup Object
+        Forum discussion page from Wall Street Oasis.
+        
+    Returns
+    -------
+    date : string
+        Date that original post was posted.
+
+    '''
     
     try:
         date = soup.find(class_='created pr-4').text.replace('\n', '')
@@ -68,6 +115,20 @@ def get_date(soup):
 
 
 def post_dict(link):
+    '''
+    Parameters
+    ----------
+    link : string
+        Specific link (without base url) to forum discussion page on Wall
+        Street Oasis.
+
+    Returns
+    -------
+    op_dict : dictionary
+        A dictionary holding the link, post, upvotes, downvotes, and date
+        for a specific forum discussion on Wall Street Oasis.
+
+    '''
     
     base_url = 'https://www.wallstreetoasis.com'
     try:
@@ -91,12 +152,12 @@ import time
 import random
 from tqdm import tqdm
 
-post_data = []
+post_data = [] # list to append dictionaries to 
 count = 0
-for link in tqdm(links_list[9500:16000]):
+for link in tqdm(links_list):
     post_data.append(post_dict(link))
     count += 1
-    if count % 100 == 0:
-        with open('wso_post_data21.pickle', 'wb') as to_write:
+    if count % 100 == 0: # we pickle the data we've scraped so far for every 100 links
+        with open('wso_post_data.pickle', 'wb') as to_write:
             pickle.dump(post_data, to_write)
-    time.sleep(.5+random.random())
+    time.sleep(.5+random.random()) # program will sleep for average of 1 second after each page request

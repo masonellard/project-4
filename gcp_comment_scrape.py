@@ -11,6 +11,18 @@ import pickle
 from tqdm import tqdm
 
 def get_date(soup):
+    '''
+    Parameters
+    ----------
+    soup : BeautifulSoup Object
+        Forum discussion page from Wall Street Oasis.
+        
+    Returns
+    -------
+    date : string
+        Date that original post was posted.
+
+    '''
     
     try:
         date = soup.find(class_='created pr-4').text.replace('\n', '')
@@ -19,14 +31,29 @@ def get_date(soup):
         None
 
 def comments_dict_list(links):
+    '''
+    Parameters
+    ----------
+    links : list of strings
+        A list of specific links (without base url) to forum discussion pages on Wall
+        Street Oasis.
+
+    Returns
+    -------
+    comment_data : list of dictionaries
+        A list of dictionaries each holding the link, comment, upvotes, downvotes, and 
+        original post date for a specific comment under a forum discussion on Wall 
+        Street Oasis.
+        
+    '''
     
-    comment_data = []
+    comment_data = [] # list to store dictionaries in
     base_url = 'https://www.wallstreetoasis.com'
     headers = ['link', 'comment', 'upvotes', 'downvotes', 'date']
     count = 0
     for link in tqdm(links):
         count += 1
-        if count % 100 == 0:
+        if count % 100 == 0: # pickle the data we scraped so far for every 100 links
             with open('wso_comment_data.pickle', 'wb') as to_write:
                 pickle.dump(comment_data, to_write)
         try:
@@ -37,17 +64,19 @@ def comments_dict_list(links):
             comment = ''
             upvotes = 0
             downvotes = 0
+            # iterate through each comment on the page and extract the text
             for comments in soup.find_all(class_='comment-content'):
                 try:
                     comment = comments.find(class_='field-name-comment-body').text
-                    for votes in comments.find_all(class_='badge'):
+                    for votes in comments.find_all(class_='badge'): # checking for values for upvotes and downvotes
                         if 'badge-success' in votes['class']:
                             upvotes = votes.text
                         else:
                             downvotes = votes.text  
                 except:
                     None
-            
+                
+                # creating a dictionary for each comment and appending them to the list
                 if comment:
                     comment_dict = dict(zip(headers, [link,
                                                       comment,
